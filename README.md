@@ -27,10 +27,10 @@ _Beartest_ implements the following functions `describe`, `it`, `beforeAll`, `be
 ### Example
 
 ```javascript
-import describe from 'beartest-js';
+import { describe, it } from 'beartest-js';
 import assert from 'assert';
 
-describe('Math Testing', ({ it }) => {
+describe('Math Testing', () => {
   it('should add correctly', async () => {
     assert.strictEqual(1 + 2, 3);
   });
@@ -47,4 +47,4 @@ Additionally, a very basic test runner is included. This test runner accepts a g
 
 ## License
 
-Copyright 2020 OpenJS Foundation and contributors. Licensed under [MIT](./LICENSE).
+Licensed under [MIT](./LICENSE).

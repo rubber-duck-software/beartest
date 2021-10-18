@@ -1,3 +1,1 @@
-const { describe } = require('./beartest.cjs');
-
-module.exports = describe;
+module.exports = require('./beartest.cjs');
