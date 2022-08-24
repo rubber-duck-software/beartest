@@ -1,1 +1,1 @@
-module.exports = require("./beartest.js");
+module.exports = require("./beartest");
