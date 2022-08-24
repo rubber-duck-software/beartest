@@ -1,13 +1,13 @@
 {
   "name": "beartest-js",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Bear Bones Testing",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rubber-duck-software/beartest.git"
   },
   "types": "index.d.ts",
-  "module": "index.cjs",
+  "module": "index.js",
   "bin": {
     "beartest": "testrunner.js"
   },
@@ -22,7 +22,7 @@
     "url": "https://github.com/rubber-duck-software/beartest/issues"
   },
   "homepage": "https://github.com/rubber-duck-software/beartest#readme",
-  "main": "index.cjs",
+  "main": "index.js",
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
