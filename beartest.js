@@ -81,16 +81,16 @@ describe.only = (headline, fn) => makeSuite(headline, true, fn);
 const it = (name, fn) => topSafe().tests.push(registerTest(topSafe(), name, fn));
 it.only = (name, fn) => topSafe().only.push(registerTest(topSafe(), name, fn));
 it.skip = () => {};
-const beforeAll = (fn) => topSafe().beforeAllHooks.push(fn);
-const afterAll = (fn) => topSafe().afterAllHooks.push(fn);
+const before = (fn) => topSafe().beforeAllHooks.push(fn);
+const after = (fn) => topSafe().afterAllHooks.push(fn);
 const beforeEach = (fn) => topSafe().beforeEachHooks.push(fn);
 const afterEach = (fn) => topSafe().afterEachHooks.push(fn);
 
 module.exports = {
   test: Object.assign(it, {
     describe,
-    beforeAll,
-    afterAll,
+    before,
+    after,
     beforeEach,
     afterEach,
   }),
