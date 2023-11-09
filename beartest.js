@@ -38,7 +38,7 @@ async function runSuite(suite) {
 }
 
 function makeSuite(headline, only = false, fn = null) {
-  const parent = top();
+  const parent = fn ? topSafe() : top();
   const self = {
     depth: parent ? parent.depth + 1 : 0,
     headline,
@@ -69,9 +69,10 @@ function makeSuite(headline, only = false, fn = null) {
   if (fn) fn();
   if (fn) suiteStack.pop();
   if (self.depth === 0) {
-    const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 0));
-    testRunPromise = timeoutPromise.then(() => runSuite(self));
-    suiteStack.pop();
+    testRunPromise = new Promise((resolve) => setTimeout(resolve, 0)).then(() => {
+      suiteStack.pop();
+      return runSuite(self);
+    });
   }
   return self;
 }
