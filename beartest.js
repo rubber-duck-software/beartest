@@ -71,6 +71,7 @@ function makeSuite(headline, only = false, fn = null) {
   if (self.depth === 0) {
     const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 0));
     testRunPromise = timeoutPromise.then(() => runSuite(self));
+    suiteStack.pop();
   }
   return self;
 }
