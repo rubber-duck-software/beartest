@@ -1,4 +1,4 @@
-const rgb = require('barecolor');
+const rgb = require("barecolor");
 
 async function RunSerially(fnArray) {
   for (const fn of fnArray) {
@@ -6,11 +6,12 @@ async function RunSerially(fnArray) {
   }
 }
 const suiteStack = [];
-const top = () =>
-  suiteStack.length ? suiteStack[suiteStack.length - 1] : undefined;
+let testRunPromise = Promise.resolve();
+const top = () => (suiteStack.length ? suiteStack[suiteStack.length - 1] : null);
+const topSafe = () => (suiteStack.length ? suiteStack[suiteStack.length - 1] : makeSuite(""));
 
 const registerTest = (suite, name, fn) => async () => {
-  const prefix = '  '.repeat(suite.depth);
+  const prefix = "  ".repeat(suite.depth);
   try {
     await suite.beforeEach();
     await fn();
@@ -25,9 +26,9 @@ const registerTest = (suite, name, fn) => async () => {
 };
 
 async function runSuite(suite) {
-  const prefix = '  '.repeat(suite.depth);
+  const prefix = "  ".repeat(suite.depth);
   const tests = suite.only.length > 0 ? suite.only : suite.tests;
-  rgb.cyanln(prefix + suite.headline + ' ');
+  rgb.cyanln(prefix + suite.headline + " ");
   try {
     await suite.beforeAll();
     await RunSerially(tests);
@@ -36,7 +37,7 @@ async function runSuite(suite) {
   }
 }
 
-async function suite(headline, fn, only = false) {
+function makeSuite(headline, only = false, fn = null) {
   const parent = top();
   const self = {
     depth: parent ? parent.depth + 1 : 0,
@@ -65,29 +66,33 @@ async function suite(headline, fn, only = false) {
   if (parent && only) parent.only.push(() => runSuite(self));
   if (parent && !only) parent.tests.push(() => runSuite(self));
   suiteStack.push(self);
-  fn();
-  suiteStack.pop();
+  if (fn) fn();
+  if (fn) suiteStack.pop();
   if (self.depth === 0) {
-    await runSuite(self);
+    const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 0));
+    testRunPromise = timeoutPromise.then(() => runSuite(self));
   }
+  return self;
 }
 
-const describe = (headline, fn) => suite(headline, fn);
+const describe = (headline, fn) => makeSuite(headline, false, fn);
 describe.skip = () => {};
-describe.only = (headline, fn) => suite(headline, fn, true);
-const it = (name, fn) => top().tests.push(registerTest(top(), name, fn));
-it.only = (name, fn) => top().only.push(registerTest(top(), name, fn));
+describe.only = (headline, fn) => makeSuite(headline, true, fn);
+const it = (name, fn) => topSafe().tests.push(registerTest(topSafe(), name, fn));
+it.only = (name, fn) => topSafe().only.push(registerTest(topSafe(), name, fn));
 it.skip = () => {};
-const beforeAll = (fn) => top().beforeAllHooks.push(fn);
-const afterAll = (fn) => top().afterAllHooks.push(fn);
-const beforeEach = (fn) => top().beforeEachHooks.push(fn);
-const afterEach = (fn) => top().afterEachHooks.push(fn);
+const beforeAll = (fn) => topSafe().beforeAllHooks.push(fn);
+const afterAll = (fn) => topSafe().afterAllHooks.push(fn);
+const beforeEach = (fn) => topSafe().beforeEachHooks.push(fn);
+const afterEach = (fn) => topSafe().afterEachHooks.push(fn);
 
 module.exports = {
-  describe,
-  it,
-  beforeAll,
-  afterAll,
-  beforeEach,
-  afterEach,
+  test: Object.assign(it, {
+    describe,
+    beforeAll,
+    afterAll,
+    beforeEach,
+    afterEach,
+  }),
+  runner: { waitForTests: () => testRunPromise },
 };

@@ -1,6 +1,6 @@
 <img src="https://beartest-js.s3.amazonaws.com/beartest-logo.png" width="400">
 
-_Beartest_ is an extremely simple JavaScript test runner inspired by Baretest and Jest. It has a tiny footprint while maintaining a familiar API.
+_Beartest_ is an extremely simple JavaScript test runner inspired by Baretest, Playwright, and Jest. It has a tiny footprint while maintaining a familiar API.
 
 ### Install
 
@@ -27,15 +27,15 @@ _Beartest_ implements the following functions `describe`, `it`, `beforeAll`, `be
 ### Example
 
 ```javascript
-import { describe, it } from "beartest-js";
+import { test } from "beartest-js";
 import assert from "assert";
 
-describe("Math Testing", () => {
-  it("should add correctly", async () => {
+test.describe("Math Testing", () => {
+  test("should add correctly", async () => {
     assert.strictEqual(1 + 2, 3);
   });
 
-  it("should subtract correctly", async () => {
+  test("should subtract correctly", async () => {
     assert.strictEqual(3 - 2, 1);
   });
 });
