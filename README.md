@@ -22,7 +22,19 @@ The Beartest test runner uses common js to load files.
 
 ### Usage
 
-_Beartest_ implements the following functions `describe`, `it`, `beforeAll`, `beforeEach`, `afterEach`, `afterAll`, `it.skip`, and `it.only`. All provided functions work in a similar way as the corresponding functions in Jest.
+_Beartest_ exports a `test` function that provides the following API:
+- `test(name, fn)` - Define a test
+- `test.describe(name, fn)` - Group tests into a suite
+- `test.before(fn)` - Run before all tests in a suite
+- `test.beforeEach(fn)` - Run before each test in a suite
+- `test.after(fn)` - Run after all tests in a suite
+- `test.afterEach(fn)` - Run after each test in a suite
+- `test.skip(name, fn)` - Skip a test
+- `test.only(name, fn)` - Run only this test
+- `test.describe.skip(name, fn)` - Skip a suite
+- `test.describe.only(name, fn)` - Run only this suite
+
+All provided functions work in a similar way as the corresponding functions in Jest.
 
 ### Example
 
@@ -43,7 +55,7 @@ test.describe("Math Testing", () => {
 
 ### Running Tests
 
-Additionally, a very basic test runner is included. This test runner accepts a glob pattern as a command line argument. The test runner can be invoked with `yarn beartest "glob-pattern"`. By default, it will look for `**/*.test.js`.
+Additionally, a very basic test runner is included. This test runner accepts a glob pattern as a command line argument. The test runner can be invoked with `yarn beartest "glob-pattern"`. By default, it will look for `**/*.test.*`.
 
 Suggested package script:
 

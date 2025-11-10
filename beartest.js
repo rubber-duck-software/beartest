@@ -1,100 +1,144 @@
-const rgb = require("barecolor");
-
+const path = require('node:path')
 async function RunSerially(fnArray) {
-  for (const fn of fnArray) {
-    await fn();
-  }
+  for (const fn of fnArray) await fn()
 }
-const suiteStack = [];
-let testRunPromise = Promise.resolve();
-const top = () => (suiteStack.length ? suiteStack[suiteStack.length - 1] : null);
-const topSafe = () => (suiteStack.length ? suiteStack[suiteStack.length - 1] : makeSuite(""));
 
-const registerTest = (suite, name, fn) => async () => {
-  const prefix = "  ".repeat(suite.depth);
+async function* runTestSuite(options = {}) {
+  const suite = top()
+  const tests = (suite.tests.some((t) => t.only) ? suite.tests.filter((t) => t.only) : suite.tests).filter(
+    (t) => !options.only?.length || options.only[0] === t.name
+  )
   try {
-    await suite.beforeEach();
-    await fn();
-    rgb.green(prefix + `✓`);
-    rgb.gray(` ${name}\n`);
-  } catch (e) {
-    rgb.red(`\n${prefix}✗ ${name} \n\n`);
-    throw e;
-  } finally {
-    await suite.afterEach();
-  }
-};
+    await RunSerially(suite.before)
+    for (let index = 0; index < tests.length; index++) {
+      const test = tests[index]
+      let startTime
 
-async function runSuite(suite) {
-  const prefix = "  ".repeat(suite.depth);
-  const tests = suite.only.length > 0 ? suite.only : suite.tests;
-  rgb.cyanln(prefix + suite.headline + " ");
-  try {
-    await suite.beforeAll();
-    await RunSerially(tests);
+      const testDetails = { name: test.name, nesting: suiteStack.length, testNumber: index, skip: test.skip }
+      const startEvent = { type: 'test:start', data: { name: test.name, nesting: suiteStack.length, type: test.type } }
+      const pass = (duration) => ({
+        type: 'test:pass',
+        data: { details: { duration_ms: duration, type: test.type }, ...testDetails }
+      })
+      if (test.skip) {
+        yield startEvent
+        yield pass(0)
+      } else {
+        try {
+          await RunSerially(suite.beforeEach)
+          yield startEvent
+          startTime = Date.now()
+
+          if (test.type === 'suite') {
+            suiteStack.push({ before: [], beforeEach: [], after: [], afterEach: [], tests: [], name: test.name })
+            try {
+              await test.fn()
+              for await (const event of runTestSuite({ only: options.only ? options.only.slice(1) : undefined })) {
+                yield event
+              }
+            } finally {
+              suiteStack.pop()
+            }
+          } else {
+            await test.fn()
+          }
+          yield pass(Date.now() - startTime)
+        } catch (e) {
+          const error = new Error('[TEST FAILURE]', { cause: e })
+          yield {
+            type: 'test:fail',
+            data: {
+              details: { duration_ms: startTime ? Date.now() - startTime : NaN, type: test.type, error },
+              ...testDetails
+            }
+          }
+          throw e
+        } finally {
+          await RunSerially(suite.afterEach)
+        }
+      }
+    }
   } finally {
-    await suite.afterAll();
+    await RunSerially(suite.after)
   }
 }
 
-function makeSuite(headline, only = false, fn = null) {
-  const parent = fn ? topSafe() : top();
-  const self = {
-    depth: parent ? parent.depth + 1 : 0,
-    headline,
-    beforeAllHooks: [],
-    async beforeAll() {
-      await RunSerially(this.beforeAllHooks);
-    },
-    beforeEachHooks: [],
-    async beforeEach() {
-      if (parent) await parent.beforeEach();
-      await RunSerially(this.beforeEachHooks);
-    },
-    afterAllHooks: [],
-    async afterAll() {
-      await RunSerially(this.afterAllHooks);
-    },
-    afterEachHooks: [],
-    async afterEach() {
-      await RunSerially(this.afterEachHooks);
-      if (parent) await parent.afterEach();
-    },
-    tests: [],
-    only: [],
-  };
-  if (parent && only) parent.only.push(() => runSuite(self));
-  if (parent && !only) parent.tests.push(() => runSuite(self));
-  suiteStack.push(self);
-  if (fn) fn();
-  if (fn) suiteStack.pop();
-  if (self.depth === 0) {
-    testRunPromise = new Promise((resolve) => setTimeout(resolve, 0)).then(() => {
-      suiteStack.pop();
-      return runSuite(self);
-    });
+const suiteStack = []
+
+function top() {
+  if (!suiteStack.length) {
+    suiteStack.push({ before: [], beforeEach: [], after: [], afterEach: [], tests: [], name: '' })
   }
-  return self;
+  return suiteStack[suiteStack.length - 1]
 }
 
-const describe = (headline, fn) => makeSuite(headline, false, fn);
-describe.skip = () => {};
-describe.only = (headline, fn) => makeSuite(headline, true, fn);
-const it = (name, fn) => topSafe().tests.push(registerTest(topSafe(), name, fn));
-it.only = (name, fn) => topSafe().only.push(registerTest(topSafe(), name, fn));
-it.skip = () => {};
-const before = (fn) => topSafe().beforeAllHooks.push(fn);
-const after = (fn) => topSafe().afterAllHooks.push(fn);
-const beforeEach = (fn) => topSafe().beforeEachHooks.push(fn);
-const afterEach = (fn) => topSafe().afterEachHooks.push(fn);
+const describe = (name, fn) => top().tests.push({ name: name, type: 'suite', fn, skip: false, only: false })
+describe.skip = (name, fn) => top().tests.push({ name: name, type: 'suite', fn, skip: true, only: false })
+describe.only = (name, fn) => top().tests.push({ name: name, type: 'suite', fn, skip: false, only: true })
+const it = (name, fn) => top().tests.push({ name: name, type: 'test', fn, skip: false, only: false })
+it.only = (name, fn) => top().tests.push({ name: name, type: 'test', fn, skip: false, only: true })
+it.skip = (name, fn) => top().tests.push({ name: name, type: 'test', fn, skip: true, only: false })
+const before = (fn) => top().before.push(fn)
+const beforeEach = (fn) => top().beforeEach.push(fn)
+const after = (fn) => top().after.push(fn)
+const afterEach = (fn) => top().afterEach.push(fn)
 
-module.exports = {
-  test: Object.assign(it, {
-    describe,
-    before,
-    after,
-    beforeEach,
-    afterEach,
-  }),
-  runner: { waitForTests: () => testRunPromise },
-};
+async function* runTests(options = {}) {
+  let index = 0
+  for await (const file of options.files) {
+    const name = file
+    const suiteDetails = { name: name, nesting: 0, testNumber: index, skip: false }
+    suiteStack.push({ before: [], beforeEach: [], after: [], afterEach: [], tests: [], name })
+    let suiteStart
+    try {
+      require(file)
+      yield { type: 'test:start', data: { name: name, nesting: 0, type: 'suite' } }
+      suiteStart = Date.now()
+      for await (let event of runTestSuite({ only: options.only })) {
+        yield event
+      }
+      yield {
+        type: 'test:pass',
+        data: { details: { duration_ms: Date.now() - suiteStart, type: 'suite' }, ...suiteDetails }
+      }
+    } catch (e) {
+      yield {
+        type: 'test:fail',
+        data: {
+          details: { duration_ms: suiteStart ? Date.now() - suiteStart : NaN, type: 'suite', error: e },
+          ...suiteDetails
+        }
+      }
+      throw e
+    } finally {
+      suiteStack.pop()
+      index++
+    }
+  }
+}
+
+if (!suiteStack.length) {
+  new Promise((resolve) => setTimeout(resolve, 0)).then(async () => {
+    if (suiteStack.length) {
+      for await (let event of runTestSuite()) {
+        const prefix = '  '.repeat(event.data.nesting)
+        if (event.type === 'test:start' && event.data.type === 'suite') {
+          if (path.isAbsolute(event.data.name)) {
+            console.log(
+              `\x1b[36m${prefix}${path.parse(event.data.name).name} (${path.relative('./', event.data.name)})\x1b[0m`
+            )
+          } else {
+            console.log(`\x1b[36m${prefix}${event.data.name}\x1b[0m`)
+          }
+        } else if (event.type === 'test:pass' && event.data.details.type === 'test' && !event.data.skip) {
+          console.log(`\x1b[32m\n${prefix}✓\x1b[0m\x1b[90m ${event.data.name}\n\x1b[0m`)
+        } else if (event.type === 'test:fail' && event.data.details.type === 'test') {
+          console.log(`\x1b[31m\n${prefix}✗ ${event.data.name}\n\x1b[0m`)
+        }
+      }
+      process.exit(0)
+    }
+  })
+}
+
+module.exports = { test: Object.assign(it, { describe, before, beforeEach, after, afterEach }), run: runTests }
