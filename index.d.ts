@@ -72,14 +72,14 @@ export interface TestFail {
 }
 
 export interface TestFunction {
-  (name: string, fn: () => Promise<any>): void
-  only(name: string, fn: () => Promise<any>): void
-  skip(name: string, fn: () => Promise<any>): void
+  (name: string, fn: () => unknown): void
+  only(name: string, fn: () => unknown): void
+  skip(name: string, fn: () => unknown): void
   describe: DescribeFunction
-  before(callback: () => Promise<any>): void
-  beforeEach(callback: () => Promise<any>): void
-  after(callback: () => Promise<any>): void
-  afterEach(callback: () => Promise<any>): void
+  before(callback: () => unknown): void
+  beforeEach(callback: () => unknown): void
+  after(callback: () => unknown): void
+  afterEach(callback: () => unknown): void
 }
 
 export interface DescribeFunction {
