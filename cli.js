@@ -37,9 +37,7 @@ async function applyFilters(files, args) {
 
 async function cli() {
   const discovered = await discoverAll()
-  console.log(discovered)
   const selected = await applyFilters(discovered, process.argv.slice(2))
-  console.log(selected)
 
   for await (let event of run({ files: selected.map((f) => path.resolve(f)) })) {
     const prefix = '  '.repeat(event.data.nesting)
@@ -55,6 +53,8 @@ async function cli() {
       process.stdout.write(`\x1b[31m\n${prefix}✗ ${event.data.name} \n\n\x1b[0m`)
     }
   }
+
+  process.exit(0)
 }
 
 cli()
