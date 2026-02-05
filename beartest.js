@@ -92,7 +92,7 @@ export async function* run(options = {}) {
     suiteStack.push({ before: [], beforeEach: [], after: [], afterEach: [], tests: [], name })
     let suiteStart
     try {
-      require(file)
+      await import(file)
       yield { type: 'test:start', data: { name: name, nesting: 0, type: 'suite' } }
       suiteStart = Date.now()
       for await (let event of runTestSuite({ only: options.only })) {
