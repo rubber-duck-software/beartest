@@ -1,4 +1,7 @@
 name: Node.js Package
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
 on:
   push:
     branches:
@@ -11,9 +14,10 @@ jobs:
       # Setup .npmrc file to publish to npm
       - uses: actions/setup-node@v1
         with:
-          node-version: '14.x'
-          registry-url: 'https://registry.npmjs.org'
-      - run: yarn
-      - run: yarn publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          node-version: "22.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - run: "npm install -g npm@^11.0.0"
+      - run: "npm --version"
+      - run: npm install
+      - run: npm publish ./

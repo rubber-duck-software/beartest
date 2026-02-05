@@ -1,17 +1,17 @@
 {
   "name": "beartest-js",
-  "version": "7.1.1",
+  "version": "8.0.0",
   "description": "Bear Bones Testing",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rubber-duck-software/beartest.git"
   },
-  "types": "./index.d.ts",
   "main": "./index.js",
+  "type": "module",
   "exports": {
     ".": {
-      "require": "./index.js",
-      "import": "./index.js"
+      "default": "./beartest.js",
+      "types": "./beartest.d.ts"
     },
     "./package.json": "./package.json"
   },
@@ -20,7 +20,6 @@
   },
   "author": "Grant Colestock",
   "license": "MIT",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/rubber-duck-software/beartest/issues"
   },

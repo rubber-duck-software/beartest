@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 
-const { run } = require('./beartest')
-const fs = require('node:fs')
-const path = require('node:path')
+import { run } from './beartest'
+import { promises } from 'node:fs'
+import { sep, resolve, isAbsolute, parse, relative } from 'node:path'
 
 const INCLUDE = ['**/*.{test,spec}.{js,ts,jsx,tsx}']
 const EXCLUDE = ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/build/**', '**/coverage/**']
 
 const hasGlob = (s) => /[*?\[\]{}()!]/.test(s)
-const norm = (p) => p.split(path.sep).join('/')
+const norm = (p) => p.split(sep).join('/')
 
 async function discoverAll() {
   const seen = new Set()
   for (const pat of INCLUDE) {
-    for await (const f of fs.promises.glob(pat, { ignore: EXCLUDE })) seen.add(norm(f))
+    for await (const f of promises.glob(pat, { ignore: EXCLUDE })) seen.add(norm(f))
   }
   return [...seen].sort()
 }
@@ -25,7 +25,7 @@ async function applyFilters(files, args) {
   for (const arg of args) {
     if (hasGlob(arg)) {
       const gset = new Set()
-      for await (const f of fs.promises.glob(arg, { ignore: EXCLUDE })) gset.add(norm(f))
+      for await (const f of promises.glob(arg, { ignore: EXCLUDE })) gset.add(norm(f))
       out = out.filter((f) => gset.has(f)) // glob filter
     } else {
       const needle = norm(arg)
@@ -39,11 +39,11 @@ async function cli() {
   const discovered = await discoverAll()
   const selected = await applyFilters(discovered, process.argv.slice(2))
 
-  for await (let event of run({ files: selected.map((f) => path.resolve(f)) })) {
+  for await (let event of run({ files: selected.map((f) => resolve(f)) })) {
     const prefix = '  '.repeat(event.data.nesting)
     if (event.type === 'test:start' && event.data.type === 'suite') {
-      if (path.isAbsolute(event.data.name)) {
-        console.log(`\x1b[36m${prefix}${path.parse(event.data.name).name} (${path.relative('./', event.data.name)})\x1b[0m`)
+      if (isAbsolute(event.data.name)) {
+        console.log(`\x1b[36m${prefix}${parse(event.data.name).name} (${relative('./', event.data.name)})\x1b[0m`)
       } else {
         console.log(`\x1b[36m${prefix}${event.data.name}\x1b[0m`)
       }

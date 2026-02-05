@@ -1,4 +1,5 @@
-const path = require('node:path')
+import path from 'node:path'
+
 async function RunSerially(fnArray) {
   for (const fn of fnArray) await fn()
 }
@@ -83,7 +84,7 @@ const beforeEach = (fn) => top().beforeEach.push(fn)
 const after = (fn) => top().after.push(fn)
 const afterEach = (fn) => top().afterEach.push(fn)
 
-async function* runTests(options = {}) {
+export async function* run(options = {}) {
   let index = 0
   for await (const file of options.files) {
     const name = file
@@ -141,4 +142,4 @@ if (!suiteStack.length) {
   })
 }
 
-module.exports = { test: Object.assign(it, { describe, before, beforeEach, after, afterEach }), run: runTests }
+export const test = Object.assign(it, { describe, before, beforeEach, after, afterEach })
