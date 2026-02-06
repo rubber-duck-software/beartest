@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { run } from './beartest'
+import { run } from './beartest.js'
 import { promises } from 'node:fs'
 import { sep, resolve, isAbsolute, parse, relative } from 'node:path'
 
