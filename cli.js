@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { run } from './beartest.js'
+import { formatEvent } from './reporter.js'
 import { promises } from 'node:fs'
-import { sep, resolve, isAbsolute, parse, relative } from 'node:path'
+import { sep, resolve } from 'node:path'
 
 const INCLUDE = ['**/*.{test,spec}.{js,ts,jsx,tsx}']
 const EXCLUDE = ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/build/**', '**/coverage/**']
@@ -39,22 +40,18 @@ async function cli() {
   const discovered = await discoverAll()
   const selected = await applyFilters(discovered, process.argv.slice(2))
 
-  for await (let event of run({ files: selected.map((f) => resolve(f)) })) {
-    const prefix = '  '.repeat(event.data.nesting)
-    if (event.type === 'test:start' && event.data.type === 'suite') {
-      if (isAbsolute(event.data.name)) {
-        console.log(`\x1b[36m${prefix}${parse(event.data.name).name} (${relative('./', event.data.name)})\x1b[0m`)
-      } else {
-        console.log(`\x1b[36m${prefix}${event.data.name}\x1b[0m`)
-      }
-    } else if (event.type === 'test:pass' && event.data.details.type === 'test' && !event.data.skip) {
-      process.stdout.write(`\x1b[32m${prefix}✓\x1b[0m\x1b[90m ${event.data.name}\n\x1b[0m`)
-    } else if (event.type === 'test:fail' && event.data.details.type === 'test') {
-      process.stdout.write(`\x1b[31m\n${prefix}✗ ${event.data.name} \n\n\x1b[0m`)
+  let failed = false
+  try {
+    for await (const event of run({ files: selected.map((f) => resolve(f)) })) {
+      if (event.type === 'test:fail') failed = true
+      const line = formatEvent(event)
+      if (line !== undefined) console.log(line)
     }
+  } catch {
+    failed = true // the run aborts at the first failure, which formatEvent has already reported
   }
 
-  process.exit(0)
+  process.exitCode = failed ? 1 : 0
 }
 
 cli()

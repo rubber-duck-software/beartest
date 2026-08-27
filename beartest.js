@@ -1,4 +1,5 @@
-import path from 'node:path'
+import { formatEvent } from './reporter.js'
+export { formatEvent }
 
 async function RunSerially(fnArray) {
   for (const fn of fnArray) await fn()
@@ -64,7 +65,16 @@ async function* runTestSuite(options = {}) {
   }
 }
 
-const suiteStack = []
+// Under loaders like `--import tsx` this module can be evaluated more than once
+// (separate module registries). Every copy must share one registry, or tests
+// register into one copy while the runner drains another.
+const BEARTEST_GLOBAL_STATE = Symbol.for('beartest-js.globalState')
+const globalState = (globalThis[BEARTEST_GLOBAL_STATE] ??= {
+  suiteStack: [],
+  externalRunnerActive: false,
+  autoRunArmed: false
+})
+const suiteStack = globalState.suiteStack
 
 function top() {
   if (!suiteStack.length) {
@@ -84,7 +94,14 @@ const beforeEach = (fn) => top().beforeEach.push(fn)
 const after = (fn) => top().after.push(fn)
 const afterEach = (fn) => top().afterEach.push(fn)
 
-export async function* run(options = {}) {
+// Flags the runner at call time, not first iteration, so the auto-run hook
+// stands down before any file suite is pushed.
+export function run(options = {}) {
+  globalState.externalRunnerActive = true
+  return runFiles(options)
+}
+
+async function* runFiles(options = {}) {
   let index = 0
   for await (const file of options.files) {
     const name = file
@@ -118,28 +135,24 @@ export async function* run(options = {}) {
   }
 }
 
-if (!suiteStack.length) {
-  new Promise((resolve) => setTimeout(resolve, 0)).then(async () => {
-    if (suiteStack.length) {
-      for await (let event of runTestSuite()) {
-        const prefix = '  '.repeat(event.data.nesting)
-        if (event.type === 'test:start' && event.data.type === 'suite') {
-          if (path.isAbsolute(event.data.name)) {
-            console.log(
-              `\x1b[36m${prefix}${path.parse(event.data.name).name} (${path.relative('./', event.data.name)})\x1b[0m`
-            )
-          } else {
-            console.log(`\x1b[36m${prefix}${event.data.name}\x1b[0m`)
-          }
-        } else if (event.type === 'test:pass' && event.data.details.type === 'test' && !event.data.skip) {
-          console.log(`\x1b[32m\n${prefix}✓\x1b[0m\x1b[90m ${event.data.name}\n\x1b[0m`)
-        } else if (event.type === 'test:fail' && event.data.details.type === 'test') {
-          console.log(`\x1b[31m\n${prefix}✗ ${event.data.name}\n\x1b[0m`)
-        }
-      }
-      process.exit(0)
-    }
-  })
-}
-
 export const test = Object.assign(it, { describe, before, beforeEach, after, afterEach })
+
+// Runs the tests a file registered when executed directly (`node some.test.js`).
+// Armed once across duplicate module copies, and stands down whenever run()
+// is driving, so an external run is never drained in parallel or exited early.
+if (!globalState.autoRunArmed) {
+  globalState.autoRunArmed = true
+  setTimeout(async () => {
+    if (globalState.externalRunnerActive || !suiteStack.length) return
+    let failed = false
+    try {
+      for await (const event of runTestSuite()) {
+        const line = formatEvent(event)
+        if (line !== undefined) console.log(line)
+      }
+    } catch {
+      failed = true // the run aborts at the first failure, which formatEvent has already reported
+    }
+    process.exit(failed ? 1 : 0)
+  }, 0)
+}

@@ -90,3 +90,5 @@ export interface DescribeFunction {
 
 export const test: TestFunction
 export const run: (options: { files: AsyncIterable<string> | Iterable<string> }) => AsyncGenerator<TestEvent>
+/** Formats one event for the console, or returns undefined when the event is not reported. */
+export const formatEvent: (event: TestEvent) => string | undefined
