@@ -51,7 +51,7 @@ async function cli() {
     failed = true // the run aborts at the first failure, which formatEvent has already reported
   }
 
-  process.exitCode = failed ? 1 : 0
+  process.exit(failed ? 1 : 0)
 }
 
 cli()
